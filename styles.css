@@ -94,6 +94,9 @@ h2 { margin: 0; color: var(--ink); font-family: serif; font-size: 24px; }
 .compass-layout { display: grid; grid-template-columns: minmax(280px, 1.1fr) minmax(250px, .9fr); gap: clamp(18px, 4vw, 42px); align-items: center; }
 .compass-wrap { width: min(100%, 520px); aspect-ratio: 1; margin: auto; touch-action: none; cursor: grab; user-select: none; }
 .overlay-demo { margin-top: 18px; padding: 14px; border: 1px solid #cad8d3; border-radius: 12px; }
+.overlay-demo h3 { margin: 0 0 8px; font-size: 19px; }
+.overlay-demo p { margin: 0 0 12px; }
+.overlay-demo output { min-width: 44px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
 .overlay-controls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
 .flying-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; }
 .flying-grid article { display: grid; gap: 4px; padding: 12px; background: #eef3f0; border: 1px solid #d2ddd8; border-radius: 10px; }

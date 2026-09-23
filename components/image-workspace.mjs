@@ -10,6 +10,7 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
   const controlRoot = canvas.closest('.image-card') || canvas.parentElement;
   const pointers = new Map();
   let transform = clampTransform(state.imageTransform);
+  let overlay = createOverlayState(state.overlay);
   let dragging = null;
   let pinch = null;
   let destroyed = false;
@@ -45,13 +46,27 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
     context.restore();
     if (state.houseBearing != null) {
       let stars=null; try { stars=calculateFlyingStarResult({buildYear:Number(state.buildYear),facingDegree:state.houseBearing,targetYear:state.flyingStarInput.targetYear,targetMonth:state.flyingStarInput.targetMonth}); } catch {}
-      drawProfessionalOverlay(context, { ...createOverlayState(state.overlay), stars });
+      drawProfessionalOverlay(context, { ...overlay, stars });
     }
   }
 
   function commit(patch) {
     transform = clampTransform({ ...transform, ...patch });
     onChange({ imageTransform: transform }, { render: false });
+    draw();
+  }
+
+  function updateOverlay(nextOverlay) {
+    overlay = createOverlayState(nextOverlay);
+    onChange({ overlay }, { render: false });
+    const scaleValue = controlRoot?.querySelector('[data-overlay-scale-value]');
+    const opacityValue = controlRoot?.querySelector('[data-overlay-opacity-value]');
+    const scaleInput = controlRoot?.querySelector('[data-overlay-scale]');
+    const opacityInput = controlRoot?.querySelector('[data-overlay-opacity]');
+    if (scaleValue) scaleValue.textContent = `${Math.round(overlay.analysis.scale * 100)}%`;
+    if (opacityValue) opacityValue.textContent = `${Math.round(overlay.analysis.opacity * 100)}%`;
+    if (scaleInput) scaleInput.value = String(overlay.analysis.scale);
+    if (opacityInput) opacityInput.value = String(overlay.analysis.opacity);
     draw();
   }
 
@@ -91,16 +106,16 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
 
   function onControls(event) {
     const action = event.target.closest('[data-image-action]')?.dataset.imageAction;
-    if (action === 'rotate') commit({ rotation: transform.rotation + 15 });
-    if (action === 'reset') fitTransform();
-    if (action === 'remove') onChange({ floorPlan: null, imageTransform: { x: 0, y: 0, scale: 1, rotation: 0 }, imageError: '' });
+    if (event.type === 'click' && action === 'rotate') commit({ rotation: transform.rotation + 15 });
+    if (event.type === 'click' && action === 'reset') fitTransform();
+    if (event.type === 'click' && action === 'remove') onChange({ floorPlan: null, imageTransform: { x: 0, y: 0, scale: 1, rotation: 0 }, imageError: '' });
     const overlayAction = event.target.closest('[data-overlay-action]')?.dataset.overlayAction;
-    if (overlayAction === 'flip') onChange({ overlay: flipNorthSouth(createOverlayState(state.overlay)) });
-    if (overlayAction === 'reset') onChange({ overlay: createOverlayState() });
+    if (event.type === 'click' && overlayAction === 'flip') updateOverlay(flipNorthSouth(overlay));
+    if (event.type === 'click' && overlayAction === 'reset') updateOverlay(createOverlayState());
     const overlayLayer = event.target.closest('[data-overlay-layer]')?.dataset.overlayLayer;
-    if (overlayLayer) onChange({ overlay: toggleOverlayLayer(createOverlayState(state.overlay), overlayLayer) });
-    if (event.target.matches('[data-overlay-scale]')) onChange({ overlay: { ...createOverlayState(state.overlay), analysis: { ...state.overlay.analysis, scale: Number(event.target.value) } } });
-    if (event.target.matches('[data-overlay-opacity]')) onChange({ overlay: { ...createOverlayState(state.overlay), analysis: { ...state.overlay.analysis, opacity: Number(event.target.value) } } });
+    if (event.type === 'change' && overlayLayer) updateOverlay(toggleOverlayLayer(overlay, overlayLayer));
+    if (event.type === 'input' && event.target.matches('[data-overlay-scale]')) updateOverlay({ ...overlay, analysis: { ...overlay.analysis, scale: Number(event.target.value) } });
+    if (event.type === 'input' && event.target.matches('[data-overlay-opacity]')) updateOverlay({ ...overlay, analysis: { ...overlay.analysis, opacity: Number(event.target.value) } });
   }
 
   image.addEventListener('load', resize, { once: true });
@@ -120,6 +135,7 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
   canvas.addEventListener('wheel', onWheel, { passive: false });
   controlRoot?.addEventListener('click', onControls);
   controlRoot?.addEventListener('change', onControls);
+  controlRoot?.addEventListener('input', onControls);
   window.addEventListener('resize', resize);
 
   input?.addEventListener('change', () => {});
@@ -134,6 +150,7 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
       canvas.removeEventListener('wheel', onWheel);
       controlRoot?.removeEventListener('click', onControls);
       controlRoot?.removeEventListener('change', onControls);
+      controlRoot?.removeEventListener('input', onControls);
       window.removeEventListener('resize', resize);
       image.src = '';
     }
