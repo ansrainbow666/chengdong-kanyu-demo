@@ -4,6 +4,10 @@ import { createOverlayState, flipNorthSouth, toggleOverlayLayer, updateDynamicPa
 import { addAnnotation, moveAnnotation, removeAnnotation, planToScreenPoint, screenToPlanPoint } from '../lib/annotation-model.mjs';
 import { annotationDetails, drawAnnotations, hitTestAnnotation } from './annotation-workspace.mjs';
 
+export function isDragGesture(start, current, threshold = 10) {
+  return Math.hypot(current.x - start.x, current.y - start.y) > threshold;
+}
+
 export function mountImageWorkspace({ canvas, input, state, onChange }) {
   if (!canvas || !state.floorPlan?.objectUrl) return { destroy() {} };
   const context = canvas.getContext('2d');
@@ -84,7 +88,7 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
     canvas.setPointerCapture?.(event.pointerId);
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
     if (pointers.size === 1) {
-      dragging = { x: event.clientX, y: event.clientY, originX: transform.x, originY: transform.y };
+      dragging = { x: event.clientX, y: event.clientY, originX: transform.x, originY: transform.y, started: false };
       tapCandidate = { x: event.clientX, y: event.clientY, started: performance.now(), pointerId: event.pointerId };
     }
     if (pointers.size === 2) { pinch = { distance: distance(), scale: transform.scale }; tapCandidate = null; }
@@ -93,20 +97,27 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
   function onPointerMove(event) {
     if (!pointers.has(event.pointerId)) return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (tapCandidate && Math.hypot(event.clientX - tapCandidate.x, event.clientY - tapCandidate.y) > 10) tapCandidate = null;
+    if (tapCandidate && isDragGesture(tapCandidate, { x: event.clientX, y: event.clientY })) tapCandidate = null;
     if (pointers.size === 2 && pinch) {
       const nextDistance = distance();
       if (pinch.distance) commit({ scale: pinch.scale * nextDistance / pinch.distance });
       return;
     }
-    if (dragging) commit({ x: dragging.originX + event.clientX - dragging.x, y: dragging.originY + event.clientY - dragging.y });
+    if (dragging) {
+      if (!dragging.started && !isDragGesture(dragging, { x: event.clientX, y: event.clientY })) return;
+      dragging.started = true;
+      commit({ x: dragging.originX + event.clientX - dragging.x, y: dragging.originY + event.clientY - dragging.y });
+    }
   }
 
   function onPointerUp(event) {
     const validTap = tapCandidate && tapCandidate.pointerId === event.pointerId && performance.now() - tapCandidate.started <= 400;
     pointers.delete(event.pointerId);
     if (pointers.size < 2) pinch = null;
-    if (!pointers.size) dragging = null;
+    if (pointers.size === 1) {
+      const [remaining] = pointers.entries();
+      dragging = { x: remaining[1].x, y: remaining[1].y, originX: transform.x, originY: transform.y, started: false };
+    } else if (!pointers.size) dragging = null;
     if (validTap) placeAnnotation(event);
     tapCandidate = null;
   }
@@ -119,7 +130,9 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
 
   function paintAnnotationDetails(selected) {
     const node = controlRoot?.querySelector('[data-annotation-details]');
-    if (node) node.innerHTML = annotationDetails(selected, { imageWidth: image.naturalWidth, imageHeight: image.naturalHeight, analysisRotation: overlay.analysis.rotation, layers: overlay.layers });
+    const model = annotationGeometry();
+    const renderModel = state.houseBearing == null ? null : createOverlayRenderModel({ houseBearing: state.houseBearing, buildYear: state.buildYear, overlay, flyingStarInput: state.flyingStarInput });
+    if (node) node.innerHTML = annotationDetails(selected, { model, analysisRotation: overlay.analysis.rotation, layers: overlay.layers, renderModel });
   }
 
   function placeAnnotation(event) {

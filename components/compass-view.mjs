@@ -65,12 +65,16 @@ export function mountCompass({ root, state, onChange }) {
     location: state.measurement.location,
     timestamp: state.measurement.timestamp
   };
+  let measurementState = { ...state.measurement };
   const sensor = createOrientationSensor({
     onReading(value) { setDegree(value, true); },
     onSample(sample) {
-      measurementInput = { ...measurementInput, ...sample, heading: sample.degree, timestamp: sample.locked ? Date.now() : measurementInput.timestamp };
+      degree = normalizeDegree(sample.degree);
+      measurementInput = { ...measurementInput, ...sample, heading: degree, timestamp: Date.now() };
+      measurementState = { ...measurementState, ...sample, degree, timestamp: measurementInput.timestamp, location: measurementInput.location };
+      paint();
       paintMeasurement();
-      onChange({ measurement: { ...state.measurement, ...sample, timestamp: measurementInput.timestamp, location: measurementInput.location } }, { render: false });
+      onChange({ compassDegree: degree, measurement: measurementState }, { render: false });
     },
     onStatus(value) {
       root.querySelector('[data-sensor-status]').textContent = STATUS_COPY[value];
@@ -79,7 +83,8 @@ export function mountCompass({ root, state, onChange }) {
       if (toggleButton) toggleButton.textContent = value === 'locked' ? '继续测向' : '锁定当前方向';
       measurementInput = { ...measurementInput, status: value, heading: degree };
       paintMeasurement();
-      onChange({ sensor: { status: value, degree } }, { render: false });
+      measurementState = { ...measurementState, status: value, degree };
+      onChange({ sensor: { status: value, degree }, measurement: measurementState }, { render: false });
     }
   });
   const location = createLocationProvider();
@@ -252,18 +257,25 @@ export function mountCompass({ root, state, onChange }) {
     if (event.target.closest('[data-enable-sensor]')) await sensor.request();
     if (event.target.closest('[data-toggle-sensor]') && root.dataset.sensorStatus === 'locked') {
       sensor.unlock();
-      onChange({ measurement: { ...state.measurement, status: 'calibrating', locked: false } }, { render: false });
+      measurementState = { ...measurementState, status: 'calibrating', locked: false };
+      onChange({ measurement: measurementState }, { render: false });
       return;
     }
     if (event.target.closest('[data-toggle-sensor]')) {
       const locked = sensor.lock();
-      if (locked) onChange({ compassDegree: degree, measurement: { ...state.measurement, status: 'locked', degree, locked: true, timestamp: Date.now() } }, { render: false });
+      if (locked) {
+        degree = normalizeDegree(locked.degree);
+        measurementState = { ...measurementState, ...locked, status: 'locked', degree, locked: true, timestamp: Date.now() };
+        paint(); paintMeasurement();
+        onChange({ compassDegree: degree, measurement: measurementState }, { render: false });
+      }
     }
     if (event.target.closest('[data-enable-location]')) {
       const result = await location.request();
       measurementInput = { ...measurementInput, location: result.status === 'granted' ? result : null };
+      measurementState = { ...measurementState, location: measurementInput.location, locationStatus: result.status };
       paintMeasurement();
-      onChange({ measurement: { ...state.measurement, location: result.status === 'granted' ? result : null, locationStatus: result.status } }, { render: false });
+      onChange({ measurement: measurementState }, { render: false });
       root.querySelector('[data-sensor-status]').textContent = result.status === 'granted' ? '定位已获取，仅用于本次测向口径' : '定位未启用，不影响手动与传感器测向';
     }
   });

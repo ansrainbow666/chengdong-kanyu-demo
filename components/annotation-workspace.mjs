@@ -33,7 +33,21 @@ export function drawAnnotations(context, { annotations, model }) {
 export function annotationDetails(annotation, input) {
   if (!annotation) return '';
   const type = ANNOTATION_TYPES[annotation.type];
-  const position = describeAnnotationPosition(annotation, { centerX: input.imageWidth / 2, centerY: input.imageHeight / 2, analysisRotation: input.analysisRotation });
-  const enabled = Object.entries(input.layers || {}).filter(([, value]) => value).map(([key]) => key).join(' / ') || '无';
-  return `<article class="annotation-detail"><strong>${escapeHtml(annotation.label || type.name)}</strong><p>${position.direction} ${position.bearing.toFixed(1)}° · ${position.trigram}宫 · ${position.mountain}山</p><p>已开启图层：${escapeHtml(enabled)}</p><p>专业判断：等待澄东先生复核</p><button type="button" data-annotation-action="move" data-annotation-id="${annotation.id}">移动</button><button type="button" data-annotation-action="delete" data-annotation-id="${annotation.id}">删除</button></article>`;
+  const point = input.model ? planToScreenPoint(annotation, input.model) : annotation;
+  const centerX = input.model ? input.model.canvasWidth / 2 : input.imageWidth / 2;
+  const centerY = input.model ? input.model.canvasHeight / 2 : input.imageHeight / 2;
+  const position = describeAnnotationPosition(point, { centerX, centerY, analysisRotation: input.analysisRotation });
+  const col = point.x < centerX ? 0 : point.x > centerX ? 2 : 1;
+  const row = point.y < centerY ? 0 : point.y > centerY ? 2 : 1;
+  const cellIndex = row * 3 + col;
+  const layerValues = [];
+  const render = input.renderModel || {};
+  if (input.layers?.bazhai && render.bazhai) layerValues.push(`八宅：${render.bazhai[Math.round(position.bearing / 45) % 8].star}`);
+  if (input.layers?.annualStars && render.annualStars) layerValues.push(`流年九星：${render.annualStars[cellIndex]}`);
+  if (input.layers?.dynamicPalace && render.dynamicPalace) { const cell = render.dynamicPalace.cells[cellIndex]; layerValues.push(`动态九宫：${cell.palace}${cell.number}·${cell.trigram}`); }
+  if (render.flyingStars && (input.layers?.natal || input.layers?.annual || input.layers?.monthly)) {
+    const palaceIndex = [5,0,7,6,4,2,1,8,3][cellIndex], star = render.flyingStars.palaces[palaceIndex];
+    layerValues.push(`玄空：山${star.mountain} 向${star.water} 运${star.period}${input.layers.annual ? ` 年${star.annual}` : ''}${input.layers.monthly ? ` 月${star.monthly}` : ''}`);
+  }
+  return `<article class="annotation-detail"><strong>${escapeHtml(annotation.label || type.name)}</strong><p>${position.direction} ${position.bearing.toFixed(1)}° · ${position.trigram}宫 · ${position.mountain}山</p><p>图层数据：${escapeHtml(layerValues.join(' / ') || '当前未开启可读取的分析层')}</p><p>专业判断：等待澄东先生复核</p><button type="button" data-annotation-action="move" data-annotation-id="${annotation.id}">移动</button><button type="button" data-annotation-action="delete" data-annotation-id="${annotation.id}">删除</button></article>`;
 }
