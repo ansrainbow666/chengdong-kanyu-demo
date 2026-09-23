@@ -1,7 +1,8 @@
 import { clampTransform } from '../lib/image-model.mjs';
-import { drawProfessionalOverlay } from './overlay-workspace.mjs';
-import { createOverlayState, flipNorthSouth, toggleOverlayLayer } from '../lib/overlay-model.mjs';
-import { calculateFlyingStarResult } from '../lib/flying-star-engine.mjs';
+import { createOverlayRenderModel, drawProfessionalOverlay } from './overlay-workspace.mjs';
+import { createOverlayState, flipNorthSouth, toggleOverlayLayer, updateDynamicPalace } from '../lib/overlay-model.mjs';
+import { addAnnotation, moveAnnotation, removeAnnotation, planToScreenPoint, screenToPlanPoint } from '../lib/annotation-model.mjs';
+import { annotationDetails, drawAnnotations, hitTestAnnotation } from './annotation-workspace.mjs';
 
 export function mountImageWorkspace({ canvas, input, state, onChange }) {
   if (!canvas || !state.floorPlan?.objectUrl) return { destroy() {} };
@@ -13,6 +14,9 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
   let overlay = createOverlayState(state.overlay);
   let dragging = null;
   let pinch = null;
+  let tapCandidate = null;
+  let annotations = state.annotations || [];
+  let annotationTool = { ...state.annotationTool };
   let destroyed = false;
 
   function fitTransform() {
@@ -44,9 +48,10 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
     context.scale(base * transform.scale, base * transform.scale);
     context.drawImage(image, -image.naturalWidth / 2, -image.naturalHeight / 2);
     context.restore();
+    const annotationModel = { canvasWidth: rect.width, canvasHeight: rect.height, imageWidth: image.naturalWidth, imageHeight: image.naturalHeight, baseScale: base, transform };
+    if (overlay.layers.annotations) drawAnnotations(context, { annotations, model: annotationModel });
     if (state.houseBearing != null) {
-      let stars=null; try { stars=calculateFlyingStarResult({buildYear:Number(state.buildYear),facingDegree:state.houseBearing,targetYear:state.flyingStarInput.targetYear,targetMonth:state.flyingStarInput.targetMonth}); } catch {}
-      drawProfessionalOverlay(context, { ...overlay, stars });
+      drawProfessionalOverlay(context, createOverlayRenderModel({ houseBearing: state.houseBearing, buildYear: state.buildYear, overlay, flyingStarInput: state.flyingStarInput }));
     }
   }
 
@@ -78,13 +83,17 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
   function onPointerDown(event) {
     canvas.setPointerCapture?.(event.pointerId);
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    if (pointers.size === 1) dragging = { x: event.clientX, y: event.clientY, originX: transform.x, originY: transform.y };
-    if (pointers.size === 2) pinch = { distance: distance(), scale: transform.scale };
+    if (pointers.size === 1) {
+      dragging = { x: event.clientX, y: event.clientY, originX: transform.x, originY: transform.y };
+      tapCandidate = { x: event.clientX, y: event.clientY, started: performance.now(), pointerId: event.pointerId };
+    }
+    if (pointers.size === 2) { pinch = { distance: distance(), scale: transform.scale }; tapCandidate = null; }
   }
 
   function onPointerMove(event) {
     if (!pointers.has(event.pointerId)) return;
     pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    if (tapCandidate && Math.hypot(event.clientX - tapCandidate.x, event.clientY - tapCandidate.y) > 10) tapCandidate = null;
     if (pointers.size === 2 && pinch) {
       const nextDistance = distance();
       if (pinch.distance) commit({ scale: pinch.scale * nextDistance / pinch.distance });
@@ -94,9 +103,45 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
   }
 
   function onPointerUp(event) {
+    const validTap = tapCandidate && tapCandidate.pointerId === event.pointerId && performance.now() - tapCandidate.started <= 400;
     pointers.delete(event.pointerId);
     if (pointers.size < 2) pinch = null;
     if (!pointers.size) dragging = null;
+    if (validTap) placeAnnotation(event);
+    tapCandidate = null;
+  }
+
+  function annotationGeometry() {
+    const rect = canvas.getBoundingClientRect();
+    const baseScale = Math.min((rect.width - 24) / image.naturalWidth, (rect.height - 24) / image.naturalHeight);
+    return { canvasWidth: rect.width, canvasHeight: rect.height, imageWidth: image.naturalWidth, imageHeight: image.naturalHeight, baseScale, transform };
+  }
+
+  function paintAnnotationDetails(selected) {
+    const node = controlRoot?.querySelector('[data-annotation-details]');
+    if (node) node.innerHTML = annotationDetails(selected, { imageWidth: image.naturalWidth, imageHeight: image.naturalHeight, analysisRotation: overlay.analysis.rotation, layers: overlay.layers });
+  }
+
+  function placeAnnotation(event) {
+    const rect = canvas.getBoundingClientRect();
+    const screenPoint = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+    const model = annotationGeometry();
+    const planPoint = screenToPlanPoint(screenPoint, model);
+    if (annotationTool.mode === 'placing' && annotationTool.type) {
+      const label = annotationTool.type === 'custom' ? String(annotationTool.customLabel || '').trim() : '';
+      if (annotationTool.type === 'custom' && !label) return;
+      annotations = addAnnotation(annotations, { id: `a${Date.now()}${annotations.length}`, type: annotationTool.type, ...planPoint, label });
+      annotationTool = { ...annotationTool, mode: 'idle', movingId: null };
+      onChange({ annotations, annotationTool }, { render: false }); draw(); return;
+    }
+    if (annotationTool.mode === 'moving' && annotationTool.movingId) {
+      annotations = moveAnnotation(annotations, annotationTool.movingId, planPoint);
+      annotationTool = { ...annotationTool, mode: 'idle', movingId: null };
+      onChange({ annotations, annotationTool }, { render: false }); draw(); return;
+    }
+    const screenAnnotations = annotations.map(item => ({ ...item, ...planToScreenPoint(item, model) }));
+    const hit = hitTestAnnotation(screenPoint, screenAnnotations, 24);
+    paintAnnotationDetails(hit ? annotations.find(item => item.id === hit.id) : null);
   }
 
   function onWheel(event) {
@@ -108,14 +153,37 @@ export function mountImageWorkspace({ canvas, input, state, onChange }) {
     const action = event.target.closest('[data-image-action]')?.dataset.imageAction;
     if (event.type === 'click' && action === 'rotate') commit({ rotation: transform.rotation + 15 });
     if (event.type === 'click' && action === 'reset') fitTransform();
-    if (event.type === 'click' && action === 'remove') onChange({ floorPlan: null, imageTransform: { x: 0, y: 0, scale: 1, rotation: 0 }, imageError: '' });
+    if (event.type === 'click' && action === 'remove') onChange({ floorPlan: null, imageTransform: { x: 0, y: 0, scale: 1, rotation: 0 }, annotations: [], annotationTool: { mode: 'idle', type: null, movingId: null }, imageError: '' });
     const overlayAction = event.target.closest('[data-overlay-action]')?.dataset.overlayAction;
     if (event.type === 'click' && overlayAction === 'flip') updateOverlay(flipNorthSouth(overlay));
     if (event.type === 'click' && overlayAction === 'reset') updateOverlay(createOverlayState());
     const overlayLayer = event.target.closest('[data-overlay-layer]')?.dataset.overlayLayer;
     if (event.type === 'change' && overlayLayer) updateOverlay(toggleOverlayLayer(overlay, overlayLayer));
+    const palaceMode = event.target.closest('[data-dynamic-palace-mode]')?.dataset.dynamicPalaceMode;
+    if (event.type === 'click' && palaceMode) updateOverlay(updateDynamicPalace(overlay, { mode: palaceMode }));
+    if (event.type === 'input' && event.target.matches('[data-dynamic-palace-rotation]')) updateOverlay(updateDynamicPalace(overlay, { rotation: Number(event.target.value) }));
     if (event.type === 'input' && event.target.matches('[data-overlay-scale]')) updateOverlay({ ...overlay, analysis: { ...overlay.analysis, scale: Number(event.target.value) } });
     if (event.type === 'input' && event.target.matches('[data-overlay-opacity]')) updateOverlay({ ...overlay, analysis: { ...overlay.analysis, opacity: Number(event.target.value) } });
+    const annotationType = event.target.closest('[data-annotation-type]')?.dataset.annotationType;
+    if (event.type === 'click' && annotationType) {
+      annotationTool = { ...annotationTool, mode: 'placing', type: annotationType, movingId: null };
+      onChange({ annotationTool }, { render: false });
+      controlRoot.querySelectorAll('[data-annotation-type]').forEach(button => button.setAttribute('aria-pressed', String(button.dataset.annotationType === annotationType)));
+    }
+    if (event.type === 'input' && event.target.matches('[data-annotation-custom-label]')) {
+      annotationTool = { ...annotationTool, customLabel: event.target.value };
+      onChange({ annotationTool }, { render: false });
+    }
+    const annotationAction = event.target.closest('[data-annotation-action]')?.dataset.annotationAction;
+    const annotationId = event.target.closest('[data-annotation-action]')?.dataset.annotationId;
+    if (event.type === 'click' && annotationAction === 'move') {
+      annotationTool = { ...annotationTool, mode: 'moving', movingId: annotationId };
+      onChange({ annotationTool }, { render: false });
+    }
+    if (event.type === 'click' && annotationAction === 'delete') {
+      annotations = removeAnnotation(annotations, annotationId); annotationTool = { ...annotationTool, mode: 'idle', movingId: null };
+      onChange({ annotations, annotationTool }, { render: false }); paintAnnotationDetails(null); draw();
+    }
   }
 
   image.addEventListener('load', resize, { once: true });

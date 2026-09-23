@@ -1,4 +1,6 @@
 import { validateStep } from '../lib/validation.mjs';
+import { overlayControls } from './overlay-workspace.mjs';
+import { annotationToolbar } from './annotation-workspace.mjs';
 
 const STEPS = [
   { id: 1, key: 'upload', label: '户型' },
@@ -23,7 +25,8 @@ function uploadStep(state) {
           </div>
         </div>
         <div class="selected-file"><span>当前图纸</span><strong>${escapeHtml(state.floorPlan.name)}</strong></div>
-        <section class="overlay-demo" aria-labelledby="overlay-title"><h3 id="overlay-title">专业叠盘</h3><p>九宫、二十四山、玄空三盘将在确认宅向后叠加于户型图。</p><div class="overlay-controls"><label><input type="checkbox" data-overlay-layer="grid" ${state.overlay.layers.grid ? 'checked' : ''}>九宫</label><label><input type="checkbox" data-overlay-layer="mountains" ${state.overlay.layers.mountains ? 'checked' : ''}>二十四山</label><label>大小 <output data-overlay-scale-value>${Math.round(state.overlay.analysis.scale * 100)}%</output><input type="range" data-overlay-scale min="0.6" max="1.5" step="0.05" value="${state.overlay.analysis.scale}"></label><label>透明度 <output data-overlay-opacity-value>${Math.round(state.overlay.analysis.opacity * 100)}%</output><input type="range" data-overlay-opacity min="0.25" max="1" step="0.05" value="${state.overlay.analysis.opacity}"></label><button type="button" data-overlay-action="flip">南北调转</button><button type="button" data-overlay-action="reset">复位叠盘</button></div></section>
+        <section class="overlay-demo" aria-labelledby="overlay-title"><h3 id="overlay-title">专业叠盘</h3><p>八宅、九星、九宫、二十四山与玄空盘层可分别开关。</p>${overlayControls(state.overlay)}</section>
+        ${annotationToolbar(state)}
         <p class="privacy-note"><span aria-hidden="true">◈</span> 所有操作均在当前设备中完成。</p>
       </section>`;
   }

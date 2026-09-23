@@ -118,6 +118,29 @@ h2 { margin: 0; color: var(--ink); font-family: serif; font-size: 24px; }
 .luopan-fine-line { stroke: rgba(101,51,12,.55); stroke-width: .6; }
 .mountain-label { fill: #311508; font-family: "Songti SC", STSong, serif; font-size: 10px; font-weight: 800; }
 .branch-label { fill: #6f1c14; font-family: "Songti SC", STSong, serif; font-size: 10px; font-weight: 800; }
+.stem-label { fill: #225c4f; font-family: "Songti SC", STSong, serif; font-size: 7px; font-weight: 700; }
+.hexagram-label { fill: #3c1d0c; font-family: serif; font-size: 7px; }
+.fenjin-label { fill: #7c1e16; font-family: system-ui; font-size: 4px; }
+.luopan-density-switch { margin: 12px auto 18px; width: min(100%, 420px); display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.luopan-density-switch button { min-height: 42px; color: #d6e3df; background: #0d2c27; border: 1px solid #41645d; border-radius: 10px; font-weight: 700; }
+.luopan-density-switch button.is-active { color: #102f2a; background: #e2c978; border-color: #e2c978; }
+.live-measurement-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.live-measurement-grid div { padding: 10px; background: #0d2c27; border: 1px solid #315149; border-radius: 9px; }
+.live-measurement-grid span, .live-measurement-grid strong { display: block; }
+.live-measurement-grid span { color: #8aa39d; font-size: 11px; }
+.live-measurement-grid strong { margin-top: 4px; color: #f3e5bb; font-size: 13px; }
+.annotation-tools { margin-top: 16px; padding: 14px; border: 1px solid #cad9d4; border-radius: 12px; }
+.annotation-tools h4 { margin: 0 0 10px; color: var(--ink); }
+.layer-switches { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
+.annotation-types { display: flex; gap: 8px; overflow-x: auto; scroll-snap-type: x proximity; padding-bottom: 5px; }
+.annotation-types button { flex: 0 0 auto; min-height: 44px; padding: 5px 9px; display: flex; align-items: center; gap: 5px; color: #314d47; background: white; border: 1px solid #cad9d4; border-radius: 9px; font-size: 12px; scroll-snap-align: start; }
+.annotation-types button[aria-pressed="true"] { color: white; background: var(--ink-2); }
+.annotation-types b { width: 24px; height: 24px; display: grid; place-items: center; color: white; background: var(--marker); border-radius: 50%; }
+.annotation-tools > label { margin-top: 10px; display: grid; gap: 5px; color: var(--muted); font-size: 12px; }
+.annotation-tools input { min-height: 40px; padding: 0 10px; border: 1px solid #cad9d4; border-radius: 8px; }
+.annotation-detail { margin-top: 10px; padding: 12px; background: #eef5f2; border-radius: 9px; }
+.annotation-detail p { margin: 5px 0; color: #526962; font-size: 12px; }
+.annotation-detail button { margin: 6px 6px 0 0; min-height: 36px; padding: 0 14px; border: 1px solid #557a72; border-radius: 8px; }
 .trigram-symbol { fill: #132f2a; font-family: serif; font-size: 17px; font-weight: 800; }
 .trigram-label { fill: #7c1e16; font-family: "Songti SC", STSong, serif; font-size: 11px; font-weight: 800; }
 .luopan-heaven-pool { filter: drop-shadow(0 2px 3px rgba(55,28,5,.45)); }
@@ -205,6 +228,8 @@ h2 { margin: 0; color: var(--ink); font-family: serif; font-size: 24px; }
   .canvas-tools { right: 8px; bottom: 8px; left: 8px; }
   .canvas-tools button { flex: 1; padding: 0 6px; }
   .compass-layout { grid-template-columns: 1fr; }
+  .live-measurement-grid, .layer-switches { grid-template-columns: 1fr 1fr; }
+  .traditional-luopan { width: min(100%, 430px); aspect-ratio: 1; }
   .compass-panel { margin-inline: calc(var(--space) * -.35); }
   .form-grid, .confirmation-grid, .finding-grid { grid-template-columns: 1fr; }
   .expert-card { grid-template-columns: 54px 1fr; }
@@ -214,4 +239,5 @@ h2 { margin: 0; color: var(--ink); font-family: serif; font-size: 24px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; animation: none !important; }
+  [data-rotating-ring] { transition: none; }
 }

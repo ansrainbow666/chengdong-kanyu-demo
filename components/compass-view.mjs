@@ -1,10 +1,11 @@
 import { directionForDegree, MOUNTAINS, normalizeDegree } from '../lib/compass-engine.mjs';
 import { createOrientationSensor } from '../lib/orientation-sensor.mjs';
 import { createLocationProvider } from '../lib/location-provider.mjs';
+import { createLiveMeasurement } from '../lib/live-measurement.mjs';
+import { EARTHLY_BRANCHES, FENJIN_LABELS, HEAVENLY_STEMS, HEXAGRAM_SEQUENCE, ringsForMode } from '../lib/luopan-layers.mjs';
 
 const TRIGRAMS = ['坎', '艮', '震', '巽', '离', '坤', '兑', '乾'];
 const TRIGRAM_SYMBOLS = ['☵', '☶', '☳', '☴', '☲', '☷', '☱', '☰'];
-const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const BEGINNER_DIRECTIONS = [
   ['北', 0], ['东北', 45], ['东', 90], ['东南', 135],
   ['南', 180], ['西南', 225], ['西', 270], ['西北', 315]
@@ -54,14 +55,30 @@ function sectorLines(count, innerRadius, outerRadius, className) {
 
 export function mountCompass({ root, state, onChange }) {
   let degree = normalizeDegree(state.compassDegree ?? state.houseBearing ?? 180);
+  const compassDisplayMode = state.compassDisplayMode === 'comprehensive' ? 'comprehensive' : 'simple';
+  const displayRings = ringsForMode(compassDisplayMode);
   let dragging = false;
+  let measurementInput = {
+    heading: degree,
+    status: state.measurement.status,
+    northReference: state.measurement.northReference,
+    location: state.measurement.location,
+    timestamp: state.measurement.timestamp
+  };
   const sensor = createOrientationSensor({
     onReading(value) { setDegree(value, true); },
+    onSample(sample) {
+      measurementInput = { ...measurementInput, ...sample, heading: sample.degree, timestamp: sample.locked ? Date.now() : measurementInput.timestamp };
+      paintMeasurement();
+      onChange({ measurement: { ...state.measurement, ...sample, timestamp: measurementInput.timestamp, location: measurementInput.location } }, { render: false });
+    },
     onStatus(value) {
       root.querySelector('[data-sensor-status]').textContent = STATUS_COPY[value];
       root.dataset.sensorStatus = value;
       const toggleButton = root.querySelector('[data-toggle-sensor]');
       if (toggleButton) toggleButton.textContent = value === 'locked' ? '继续测向' : '锁定当前方向';
+      measurementInput = { ...measurementInput, status: value, heading: degree };
+      paintMeasurement();
       onChange({ sensor: { status: value, degree } }, { render: false });
     }
   });
@@ -74,6 +91,10 @@ export function mountCompass({ root, state, onChange }) {
         <button type="button" data-mode="beginner" class="${state.mode === 'beginner' ? 'is-active' : ''}">新手选向</button>
         <button type="button" data-mode="professional" class="${state.mode === 'professional' ? 'is-active' : ''}">专业罗盘</button>
       </div>
+      ${state.mode === 'professional' ? `<div class="luopan-density-switch" role="group" aria-label="罗盘显示密度">
+        <button type="button" data-luopan-mode="simple" class="${compassDisplayMode === 'simple' ? 'is-active' : ''}">简明盘</button>
+        <button type="button" data-luopan-mode="comprehensive" class="${compassDisplayMode === 'comprehensive' ? 'is-active' : ''}">综合盘</button>
+      </div>` : ''}
       <div class="compass-layout">
         ${state.mode === 'beginner' ? `
         <div class="beginner-directions" role="group" aria-label="八方向快速选择">
@@ -97,7 +118,10 @@ export function mountCompass({ root, state, onChange }) {
               <circle cx="160" cy="160" r="91" class="luopan-ring"/>
               <circle cx="160" cy="160" r="64" class="luopan-ring"/>
               <g class="luopan-mountain-ring">${ringLabels(MOUNTAINS, 127, 15, 'mountain-label')}</g>
-              <g class="luopan-branch-ring">${ringLabels(EARTHLY_BRANCHES, 102, 30, 'branch-label')}</g>
+              ${displayRings.showBranches ? `<g class="luopan-branch-ring">${ringLabels(EARTHLY_BRANCHES, 102, 30, 'branch-label')}</g>` : ''}
+              ${displayRings.showStems ? `<g class="luopan-stem-ring">${ringLabels(HEAVENLY_STEMS, 110, 36, 'stem-label')}</g>` : ''}
+              ${displayRings.showHexagrams ? `<g class="luopan-hexagram-ring">${ringLabels(HEXAGRAM_SEQUENCE, 145, 5.625, 'hexagram-label')}</g>` : ''}
+              ${displayRings.showFenjin ? `<g class="luopan-fenjin-ring">${ringLabels(FENJIN_LABELS, 94, 7.5, 'fenjin-label')}</g>` : ''}
               <g class="luopan-trigram-ring">${ringLabels(TRIGRAM_SYMBOLS, 77, 45, 'trigram-symbol')}${ringLabels(TRIGRAMS, 55, 45, 'trigram-label')}</g>
             </g>
             <g class="luopan-heaven-pool">
@@ -127,6 +151,17 @@ export function mountCompass({ root, state, onChange }) {
           <button type="button" class="sensor-button is-secondary" data-enable-location>启用可选定位</button>
           <p class="sensor-status" data-sensor-status>${STATUS_COPY.idle}</p>
           <p class="sensor-warning">手机罗盘可能受金属、电器和建筑结构影响，建议在不同位置复测。</p>
+          <div class="live-measurement-grid" aria-label="实时测向数据">
+            <div><span>朝向</span><strong data-live-heading></strong></div>
+            <div><span>坐向</span><strong data-live-sitting></strong></div>
+            <div><span>二十四山</span><strong data-live-mountain></strong></div>
+            <div><span>八宫</span><strong data-live-trigram></strong></div>
+            <div><span>稳定状态</span><strong data-live-stability></strong></div>
+            <div><span>北向基准</span><strong data-live-north-reference></strong></div>
+            <div><span>纬度</span><strong data-live-latitude></strong></div>
+            <div><span>经度</span><strong data-live-longitude></strong></div>
+            <div><span>记录时间</span><strong data-live-timestamp></strong></div>
+          </div>
         </div>
       </div>
     </section>`;
@@ -136,12 +171,33 @@ export function mountCompass({ root, state, onChange }) {
   const directionText = root.querySelector('[data-compass-direction]');
   const input = root.querySelector('[data-degree-input]');
 
+  function paintMeasurement() {
+    const measurement = createLiveMeasurement(measurementInput);
+    const fields = {
+      heading: measurement.headingLabel,
+      sitting: measurement.sittingLabel,
+      mountain: `${measurement.mountain}山 / 坐${measurement.sittingMountain}山`,
+      trigram: measurement.trigram,
+      stability: measurement.stabilityLabel,
+      'north-reference': measurement.northReferenceLabel,
+      latitude: measurement.latitudeLabel,
+      longitude: measurement.longitudeLabel,
+      timestamp: measurement.timestampLabel
+    };
+    Object.entries(fields).forEach(([key, value]) => {
+      const node = root.querySelector(`[data-live-${key}]`);
+      if (node) node.textContent = value;
+    });
+  }
+
   function paint() {
     const result = directionForDegree(degree);
     ring?.setAttribute('transform', `rotate(${-degree} 160 160)`);
     if (degreeText) degreeText.textContent = `${result.degree.toFixed(1)}°`;
     if (directionText) directionText.textContent = `${result.direction} · ${result.mountain}山`;
     input.value = result.degree.toFixed(1);
+    measurementInput = { ...measurementInput, heading: result.degree };
+    paintMeasurement();
     root.querySelectorAll('[data-beginner-degree]').forEach(button => {
       button.classList.toggle('is-active', Number(button.dataset.beginnerDegree) === Math.round(result.degree / 45) * 45 % 360);
     });
@@ -178,6 +234,8 @@ export function mountCompass({ root, state, onChange }) {
     if (event.target.matches('[data-degree-input]')) setDegree(event.target.value);
   });
   root.addEventListener('click', async event => {
+    const luopanMode = event.target.closest('[data-luopan-mode]')?.dataset.luopanMode;
+    if (luopanMode) return onChange({ compassDisplayMode: luopanMode });
     const mode = event.target.closest('[data-mode]')?.dataset.mode;
     if (mode) return onChange({ mode });
     const beginnerDegree = event.target.closest('[data-beginner-degree]')?.dataset.beginnerDegree;
@@ -203,6 +261,8 @@ export function mountCompass({ root, state, onChange }) {
     }
     if (event.target.closest('[data-enable-location]')) {
       const result = await location.request();
+      measurementInput = { ...measurementInput, location: result.status === 'granted' ? result : null };
+      paintMeasurement();
       onChange({ measurement: { ...state.measurement, location: result.status === 'granted' ? result : null, locationStatus: result.status } }, { render: false });
       root.querySelector('[data-sensor-status]').textContent = result.status === 'granted' ? '定位已获取，仅用于本次测向口径' : '定位未启用，不影响手动与传感器测向';
     }

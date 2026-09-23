@@ -54,6 +54,8 @@ root.addEventListener('floorplan:selected', event => {
   applyPatch({
     floorPlan: { name: file.name, type: file.type, size: file.size, objectUrl: currentObjectUrl },
     imageTransform: { x: 0, y: 0, scale: 1, rotation: 0 },
+    annotations: [],
+    annotationTool: { mode: 'idle', type: null, movingId: null },
     imageError: ''
   });
 });
