@@ -3,6 +3,8 @@ import { createOrientationSensor } from '../lib/orientation-sensor.mjs';
 import { createLocationProvider } from '../lib/location-provider.mjs';
 
 const TRIGRAMS = ['坎', '艮', '震', '巽', '离', '坤', '兑', '乾'];
+const TRIGRAM_SYMBOLS = ['☵', '☶', '☳', '☴', '☲', '☷', '☱', '☰'];
+const EARTHLY_BRANCHES = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
 const BEGINNER_DIRECTIONS = [
   ['北', 0], ['东北', 45], ['东', 90], ['东南', 135],
   ['南', 180], ['西南', 225], ['西', 270], ['西北', 315]
@@ -33,11 +35,20 @@ function ringLabels(labels, radius, step, className) {
 }
 
 function tickMarks() {
-  return Array.from({ length: 72 }, (_, index) => {
-    const degree = index * 5;
+  return Array.from({ length: 120 }, (_, index) => {
+    const degree = index * 3;
     const outer = point(151, degree);
-    const inner = point(index % 3 === 0 ? 140 : 145, degree);
+    const inner = point(index % 5 === 0 ? 139 : 146, degree);
     return `<line x1="${inner.x}" y1="${inner.y}" x2="${outer.x}" y2="${outer.y}" />`;
+  }).join('');
+}
+
+function sectorLines(count, innerRadius, outerRadius, className) {
+  return Array.from({ length: count }, (_, index) => {
+    const degree = index * 360 / count;
+    const inner = point(innerRadius, degree);
+    const outer = point(outerRadius, degree);
+    return `<line class="${className}" x1="${inner.x}" y1="${inner.y}" x2="${outer.x}" y2="${outer.y}" />`;
   }).join('');
 }
 
@@ -49,6 +60,8 @@ export function mountCompass({ root, state, onChange }) {
     onStatus(value) {
       root.querySelector('[data-sensor-status]').textContent = STATUS_COPY[value];
       root.dataset.sensorStatus = value;
+      const toggleButton = root.querySelector('[data-toggle-sensor]');
+      if (toggleButton) toggleButton.textContent = value === 'locked' ? '继续测向' : '锁定当前方向';
       onChange({ sensor: { status: value, degree } }, { render: false });
     }
   });
@@ -65,18 +78,40 @@ export function mountCompass({ root, state, onChange }) {
         ${state.mode === 'beginner' ? `
         <div class="beginner-directions" role="group" aria-label="八方向快速选择">
           ${BEGINNER_DIRECTIONS.map(([label, value]) => `<button type="button" data-beginner-degree="${value}" class="${Math.round(degree / 45) * 45 % 360 === value ? 'is-active' : ''}"><strong>${label}</strong><span>${value}°</span></button>`).join('')}
-        </div>` : `<div class="compass-wrap" data-compass-drag>
-          <svg class="compass-svg" viewBox="0 0 320 320" role="img" aria-label="二十四山罗盘">
-            <defs><radialGradient id="compassGlow"><stop offset="0" stop-color="#153b34"/><stop offset="1" stop-color="#071d1a"/></radialGradient></defs>
-            <circle cx="160" cy="160" r="154" fill="url(#compassGlow)" stroke="#c8a55a" stroke-width="1.5"/>
-            <g class="ticks">${tickMarks()}</g>
-            <circle cx="160" cy="160" r="133" fill="none" stroke="#47665f"/>
-            <circle cx="160" cy="160" r="98" fill="none" stroke="#47665f"/>
-            <g data-rotating-ring>${ringLabels(MOUNTAINS, 118, 15, 'mountain-label')}${ringLabels(TRIGRAMS, 80, 45, 'trigram-label')}</g>
-            <path d="M160 15 153 34h14Z" fill="#e05f4f"/>
-            <circle cx="160" cy="160" r="57" fill="#0d2c27" stroke="#2ac9ae"/>
-            <text data-compass-degree x="160" y="150" text-anchor="middle" class="degree-label">180.0°</text>
-            <text data-compass-direction x="160" y="177" text-anchor="middle" class="direction-label">正南 · 午山</text>
+        </div>` : `<div class="compass-wrap traditional-luopan" data-compass-drag>
+          <svg class="compass-svg" viewBox="0 0 320 320" role="img" aria-label="传统多层二十四山罗盘">
+            <defs>
+              <radialGradient id="luopanGold" cx="45%" cy="38%"><stop offset="0" stop-color="#fff4bc"/><stop offset=".5" stop-color="#dfb85d"/><stop offset="1" stop-color="#9a5b19"/></radialGradient>
+              <radialGradient id="heavenPool"><stop offset="0" stop-color="#f7e8b5"/><stop offset=".72" stop-color="#d6a43d"/><stop offset="1" stop-color="#713313"/></radialGradient>
+              <filter id="luopanShadow"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-color="#000" flood-opacity=".42"/></filter>
+            </defs>
+            <rect x="4" y="4" width="312" height="312" rx="18" class="luopan-wood-frame"/>
+            <circle cx="160" cy="160" r="151" fill="url(#luopanGold)" class="luopan-disc" filter="url(#luopanShadow)"/>
+            <g data-rotating-ring>
+              <g class="luopan-degree-ring ticks">${tickMarks()}</g>
+              ${sectorLines(24, 116, 139, 'luopan-sector-line')}
+              ${sectorLines(12, 91, 113, 'luopan-fine-line')}
+              ${sectorLines(8, 64, 88, 'luopan-sector-line')}
+              <circle cx="160" cy="160" r="139" class="luopan-ring"/>
+              <circle cx="160" cy="160" r="116" class="luopan-ring"/>
+              <circle cx="160" cy="160" r="91" class="luopan-ring"/>
+              <circle cx="160" cy="160" r="64" class="luopan-ring"/>
+              <g class="luopan-mountain-ring">${ringLabels(MOUNTAINS, 127, 15, 'mountain-label')}</g>
+              <g class="luopan-branch-ring">${ringLabels(EARTHLY_BRANCHES, 102, 30, 'branch-label')}</g>
+              <g class="luopan-trigram-ring">${ringLabels(TRIGRAM_SYMBOLS, 77, 45, 'trigram-symbol')}${ringLabels(TRIGRAMS, 55, 45, 'trigram-label')}</g>
+            </g>
+            <g class="luopan-heaven-pool">
+              <circle cx="160" cy="160" r="42" fill="url(#heavenPool)"/>
+              <circle cx="160" cy="160" r="35" class="heaven-pool-glass"/>
+              <path d="M160 129 C177 139 177 151 160 160 C143 169 143 181 160 191 C125 190 125 130 160 129Z" class="yin-shape"/>
+              <path d="M160 129 C143 139 143 151 160 160 C177 169 177 181 160 191 C195 190 195 130 160 129Z" class="yang-shape"/>
+              <circle cx="160" cy="145" r="3.5" class="yang-dot"/><circle cx="160" cy="175" r="3.5" class="yin-dot"/>
+            </g>
+            <g data-compass-crosshair class="luopan-crosshair"><line x1="18" y1="160" x2="302" y2="160"/><line x1="160" y1="18" x2="160" y2="302"/></g>
+            <path d="M160 10 153 30h14Z" class="luopan-pointer"/>
+            <rect x="115" y="247" width="90" height="39" rx="9" class="luopan-readout"/>
+            <text data-compass-degree x="160" y="262" text-anchor="middle" class="degree-label">180.0°</text>
+            <text data-compass-direction x="160" y="278" text-anchor="middle" class="direction-label">正南 · 午山</text>
           </svg>
         </div>`}
         <div class="compass-controls">
@@ -87,8 +122,8 @@ export function mountCompass({ root, state, onChange }) {
           </div>
           <button type="button" class="record-button" data-record="house">记录为宅向</button>
           <button type="button" class="record-button is-secondary" data-record="door">记录为门向</button>
-          <button type="button" class="sensor-button" data-enable-sensor>启用手机测向</button>
-          <button type="button" class="sensor-button" data-lock-sensor>锁定测向</button>
+          <button type="button" class="sensor-button" data-enable-sensor>开启实时罗盘</button>
+          <button type="button" class="sensor-button" data-toggle-sensor>锁定当前方向</button>
           <button type="button" class="sensor-button is-secondary" data-enable-location>启用可选定位</button>
           <p class="sensor-status" data-sensor-status>${STATUS_COPY.idle}</p>
           <p class="sensor-warning">手机罗盘可能受金属、电器和建筑结构影响，建议在不同位置复测。</p>
@@ -157,7 +192,12 @@ export function mountCompass({ root, state, onChange }) {
       root.querySelector('[data-door-bearing]').textContent = `${directionForDegree(degree).direction} ${degree.toFixed(1)}°`;
     }
     if (event.target.closest('[data-enable-sensor]')) await sensor.request();
-    if (event.target.closest('[data-lock-sensor]')) {
+    if (event.target.closest('[data-toggle-sensor]') && root.dataset.sensorStatus === 'locked') {
+      sensor.unlock();
+      onChange({ measurement: { ...state.measurement, status: 'calibrating', locked: false } }, { render: false });
+      return;
+    }
+    if (event.target.closest('[data-toggle-sensor]')) {
       const locked = sensor.lock();
       if (locked) onChange({ compassDegree: degree, measurement: { ...state.measurement, status: 'locked', degree, locked: true, timestamp: Date.now() } }, { render: false });
     }

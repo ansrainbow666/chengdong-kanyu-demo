@@ -93,6 +93,7 @@ h2 { margin: 0; color: var(--ink); font-family: serif; font-size: 24px; }
 .mode-switch button.is-active { color: var(--ink); background: var(--jade-soft); font-weight: 700; }
 .compass-layout { display: grid; grid-template-columns: minmax(280px, 1.1fr) minmax(250px, .9fr); gap: clamp(18px, 4vw, 42px); align-items: center; }
 .compass-wrap { width: min(100%, 520px); aspect-ratio: 1; margin: auto; touch-action: none; cursor: grab; user-select: none; }
+.traditional-luopan { padding: clamp(5px, 1vw, 10px); border-radius: 22px; background: linear-gradient(145deg, #6f2c17, #35130d); box-shadow: inset 0 0 0 2px #a9652d, 0 24px 45px rgba(0,0,0,.34); }
 .overlay-demo { margin-top: 18px; padding: 14px; border: 1px solid #cad8d3; border-radius: 12px; }
 .overlay-demo h3 { margin: 0 0 8px; font-size: 19px; }
 .overlay-demo p { margin: 0 0 12px; }
@@ -108,11 +109,27 @@ h2 { margin: 0; color: var(--ink); font-family: serif; font-size: 24px; }
 .beginner-directions button.is-active { color: var(--ink); background: var(--jade-soft); border-color: var(--jade-soft); }
 .beginner-directions button.is-active span { color: #285e53; }
 .compass-svg { width: 100%; height: 100%; filter: drop-shadow(0 18px 34px rgba(0,0,0,.3)); }
-.ticks line { stroke: #7b8f89; stroke-width: 1; }
-.mountain-label { fill: #dbc58b; font-family: serif; font-size: 12px; }
-.trigram-label { fill: #94daca; font-family: serif; font-size: 17px; }
-.degree-label { fill: white; font: 700 25px system-ui; }
-.direction-label { fill: #9de8d9; font: 13px system-ui; }
+.luopan-wood-frame { fill: #56200f; stroke: #c17a34; stroke-width: 2; }
+.luopan-disc { stroke: #4f250e; stroke-width: 2; }
+.luopan-ring { fill: none; stroke: rgba(64,33,10,.78); stroke-width: 1.1; }
+.ticks line { stroke: rgba(63,31,8,.78); stroke-width: .7; }
+.ticks line:nth-child(5n+1) { stroke-width: 1.4; }
+.luopan-sector-line { stroke: rgba(70,32,8,.72); stroke-width: .8; }
+.luopan-fine-line { stroke: rgba(101,51,12,.55); stroke-width: .6; }
+.mountain-label { fill: #311508; font-family: "Songti SC", STSong, serif; font-size: 10px; font-weight: 800; }
+.branch-label { fill: #6f1c14; font-family: "Songti SC", STSong, serif; font-size: 10px; font-weight: 800; }
+.trigram-symbol { fill: #132f2a; font-family: serif; font-size: 17px; font-weight: 800; }
+.trigram-label { fill: #7c1e16; font-family: "Songti SC", STSong, serif; font-size: 11px; font-weight: 800; }
+.luopan-heaven-pool { filter: drop-shadow(0 2px 3px rgba(55,28,5,.45)); }
+.heaven-pool-glass { fill: rgba(246,239,210,.5); stroke: #6c3d15; stroke-width: 1.2; }
+.yin-shape { fill: #132f2a; opacity: .88; }
+.yang-shape { fill: #f8e8ad; opacity: .9; }
+.yin-dot { fill: #132f2a; }.yang-dot { fill: #f8e8ad; }
+.luopan-crosshair line { stroke: #cf3125; stroke-width: .75; opacity: .86; }
+.luopan-pointer { fill: #d9281e; stroke: #fff0be; stroke-width: .6; }
+.luopan-readout { fill: rgba(31,15,8,.82); stroke: #d6a84c; stroke-width: .8; }
+.degree-label { fill: #fff3c5; font: 700 15px system-ui; }
+.direction-label { fill: #f3d77d; font: 10px system-ui; }
 .compass-controls { display: grid; gap: 12px; }
 .compass-controls > label { padding: 14px; display: flex; align-items: center; justify-content: space-between; color: #adc1bc; background: #0d2c27; border: 1px solid #315149; border-radius: 12px; font-size: 14px; }
 .compass-controls input { width: 92px; padding: 8px; color: white; background: #071d1a; border: 1px solid #47665f; border-radius: 8px; text-align: right; }
