@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="description" content="上传户型图，记录宅向与门向，生成初步堪舆参考。">
+    <meta name="theme-color" content="#071d1a">
+    <title>澄东堪舆</title>
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+    <link rel="stylesheet" href="./styles.css">
+    <script type="module" src="./app.mjs"></script>
+  </head>
+  <body>
+    <header class="brand-bar">
+      <a class="brand" href="#top" aria-label="澄东堪舆首页">
+        <span class="brand-mark" aria-hidden="true">澄</span>
+        <span><strong>澄东堪舆</strong><small>CHENGDONG KANYU</small></span>
+      </a>
+      <span class="privacy-badge">本地处理</span>
+    </header>
+
+    <main id="top" class="app-shell">
+      <section class="intro" aria-labelledby="page-title">
+        <p class="eyebrow">RESIDENTIAL ORIENTATION</p>
+        <h1 id="page-title">户型与方位分析</h1>
+        <p>上传户型图，记录宅向与门向，先把空间信息整理清楚。</p>
+      </section>
+
+      <div id="wizard-root"></div>
+      <p id="app-status" class="sr-only" aria-live="polite"></p>
+    </main>
+    <footer class="site-footer">
+      <strong>演示规则，仅供沟通参考</strong>
+      <p>户型图仅在当前设备中处理；重要判断需结合现场环境由澄东先生复核。</p>
+    </footer>
+  </body>
+</html>
